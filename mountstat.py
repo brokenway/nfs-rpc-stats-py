@@ -22,7 +22,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 import sys, os, time, optparse
 
-__maintainers__ = ['blake', 'geoffrey']
+__maintainers__ = ['Blake', 'Geoffrey']
 
 Mountstats_version = '0.2'
 
