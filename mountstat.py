@@ -22,6 +22,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 import sys, os, time, optparse
 
+__maintainers__ = ['blake', 'geoffrey']
+
 Mountstats_version = '0.2'
 
 def difference(x, y):
