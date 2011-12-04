@@ -22,7 +22,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 import sys, os, time, optparse
 
-__maintainers__ = ['Blake', 'Geoffrey']
+__maintainers__ = ['Blake Golliher', 'Geoffrey Golliher']
 
 Mountstats_version = '0.2'
 
@@ -45,7 +45,7 @@ class DeviceData:
       self.__nfs_data['export'] = words[1]
       self.__nfs_data['mountpoint'] = words[4]
       self.__nfs_data['fstype'] = words[7]
-      if words[7].find('nfs') != -1:
+      if words[7].find('nfs') != -1 and len(words) > 8:
         self.__nfs_data['statvers'] = words[8]
     elif words[0] == 'age:':
       self.__nfs_data['age'] = long(words[1])
