@@ -149,29 +149,6 @@ class DeviceData:
       return True
     return False
 
-  def display_rpc_op_stats(self):
-    """Pretty-print the per-op stats
-    """
-    sends = self.__rpc_data['rpcsends']
-
-    # XXX: these should be sorted by 'count'
-    print
-    for op in self.__rpc_data['ops']:
-      stats = self.__rpc_data[op]
-      count = stats[0]
-      retrans = stats[1] - count
-      if count != 0:
-        print '%s:' % op
-        print '\t%d ops (%d%%)' % \
-          (count, ((count * 100) / sends)),
-        print '\t%d retrans (%d%%)' % (retrans, ((retrans * 100) / count)),
-        print '\t%d major timeouts' % stats[2]
-        print '\tavg bytes sent per op: %d\tavg bytes received per op: %d' % \
-          (stats[3] / count, stats[4] / count)
-        print '\tbacklog wait: %f' % (float(stats[5]) / count),
-        print '\tRTT: %f' % (float(stats[6]) / count),
-        print '\ttotal execute time: %f (milliseconds)' % \
-          (float(stats[7]) / count)
   # Read: GETATTR LOOKUP ACCESS READLINK READ READDIR READDIRPLUS FSSTAT FSINFO PATHCONF
   # Write: SETATTR WRITE CREATE MKDIR MKNOD RENAME LINK COMMIT
   def calc_other_ops(self, sample_time, others):
@@ -349,7 +326,7 @@ def print_iostat_summary(new, devices, time, options):
 def iostat_command(options):
   """iostat-like command for NFS mount points
   """
-  mountstats = parse_stats_file('/proc/self/mountstats')
+  mountstats = parse_stats_file(options.mountstats_file)
   devices = []
   sample_time = 0
   for device, descr in mountstats.iteritems():
@@ -369,12 +346,21 @@ def handle_options():
       version="%prog .01")
   parser.add_option("-c", "--csv", action="store_true", dest="csv_on",
                     help="Specify csv output.", default=False)
-  parser.add_option("-a", "--all_stats", action="store_true", dest="all_stats_on",
-                    help="Get all other stats from I/O ops.", default=False)
-  parser.add_option("-r", "--read_stats", action="store_true", dest="read_stats_on",
-                    help="Get all other stats from Read I/O ops.", default=False)
-  parser.add_option("-w", "--write_stats", action="store_true", dest="write_stats_on",
-                    help="Get all other stats from Write I/O ops.", default=False)
+  parser.add_option("-a", "--all_stats", action="store_true",
+                    dest="all_stats_on",
+                    help="Get all other stats from I/O ops.",
+		    default=False)
+  parser.add_option("-r", "--read_stats", action="store_true",
+                    dest="read_stats_on",
+                    help="Get all other stats from Read I/O ops.",
+		    default=False)
+  parser.add_option("-w", "--write_stats", action="store_true",
+                    dest="write_stats_on",
+                    help="Get all other stats from Write I/O ops.",
+		    default=False)
+  parser.add_option("-f", "--mountstats_file", dest="mountstats_file",
+                    help="Get all other stats from Write I/O ops.",
+		    default='/proc/self/mountstats')
 
   return parser.parse_args()
 #
