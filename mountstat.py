@@ -211,7 +211,8 @@ class DeviceData:
     write_avg_exe = 0.00
     others_list = ''
     if sends !=0:
-      ops_backlog = (float(self.__rpc_data['backlogutil']) / sends) / sample_time
+      ops_backlog = (float(
+          self.__rpc_data['backlogutil']) / sends) / sample_time
     ops_per_sec = sends / sample_time
     read_rpc_stats = self.__rpc_data['READ']
     read_ops = float(read_rpc_stats[0])
@@ -227,7 +228,7 @@ class DeviceData:
     if not options.all_stats_on:
       if options.read_stats_on:
         others_list += ','.join(
-	    [','.join(map(str, val)) for key,val in self.calc_other_ops(sample_time,
+	    [','.join(map(str, v)) for k,v in self.calc_other_ops(sample_time,
 	     ops_maps['READ']).iteritems()])
     # writes:  ops/s, Kb/s, avg rtt, and avg exe
     # XXX: include avg xfer size and retransmits?
@@ -248,14 +249,15 @@ class DeviceData:
 	write_avg_rtt, write_avg_exe)
     if not options.all_stats_on:
       others_list += ','.join(
-          [','.join(map(str, val)) for key,val in self.calc_other_ops(sample_time,
+          [','.join(map(str, v)) for k,v in self.calc_other_ops(sample_time,
            ops_maps['WRITE']).iteritems()])
     elif options.all_stats_on:
       others_list += ','.join(
-          [','.join(map(str, val)) for key,val in self.calc_other_ops(sample_time,
+          [','.join(map(str, v)) for k,v in self.calc_other_ops(sample_time,
            ops_maps['READ'] + ops_maps['WRITE']).iteritems()])
     print oline + others_list
 
+  # TODO(geoffrey): Refactor this into display_iostats().
   def display_iostats_human(self, sample_time):
     """Display NFS and RPC stats in an iostat-like way
     """
