@@ -241,7 +241,7 @@ class DeviceData:
     if write_ops != 0:
       write_avg_rtt = write_rtt / write_ops
       write_avg_exe = write_exe / write_ops
-    oline = '{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11}'.format(
+    oline = '%s,%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f' % (
         self.__nfs_data['export'], self.__nfs_data['mountpoint'],
         ops_per_sec, ops_backlog, read_ops_per_sec, read_kb_per_sec,
 	read_avg_rtt, read_avg_exe, write_ops_per_sec, write_kb_per_sec,
