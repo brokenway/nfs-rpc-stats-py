@@ -162,35 +162,19 @@ class DeviceData:
       rtt = float(rpc_stats[6])
       exe = float(rpc_stats[7])
       ops_per_sec = ops / sample_time
-      others_dict[s].append(ops_per_sec)
+      others_dict[s].append(('ops_per_sec', ops_per_sec))
       if ops != 0:
         avg_rtt = rtt / ops
         avg_exe = exe / ops
-      others_dict[s].append(avg_rtt)
-      others_dict[s].append(avg_exe)
+      others_dict[s].append(('avg_rtt', avg_rtt))
+      others_dict[s].append(('avg_exe', avg_exe))
     return others_dict
 
-  def display_iostats(self, sample_time, options):
-    """Display NFS and RPC stats in an iostat-like way
-    """
-    if not options.csv_on:
-      return self.display_iostats_human(sample_time)
-    sends = float(self.__rpc_data['rpcsends'])
-    if sample_time == 0:
-      sample_time = float(self.__nfs_data['age'])
-
+  def build_read_stats(self, sample_time, full=False):
     # reads:  ops/s, Kb/s, avg rtt, and avg exe
-    # XXX: include avg xfer size and retransmits?
-    ops_backlog = 0.00
     read_avg_rtt = 0.00
     read_avg_exe = 0.00
-    write_avg_rtt = 0.00
-    write_avg_exe = 0.00
-    others_list = ''
-    if sends !=0:
-      ops_backlog = (float(
-          self.__rpc_data['backlogutil']) / sends) / sample_time
-    ops_per_sec = sends / sample_time
+    others_list = []
     read_rpc_stats = self.__rpc_data['READ']
     read_ops = float(read_rpc_stats[0])
     read_kilobytes = float(self.__nfs_data['serverreadbytes']) / 1024
@@ -201,16 +185,23 @@ class DeviceData:
     if read_ops != 0:
       read_avg_rtt = read_rtt / read_ops
       read_avg_exe = read_exe / read_ops
+    read_list = [('read_ops_per_sec', read_ops_per_sec),
+                 ('read_kb_per_sec', read_kb_per_sec),
+                 ('read_avg_rtt', read_avg_rtt),
+                 ('read_avg_exe', read_avg_exe)]
+    if full:
+      others_list = [(k, v) for k, v in self.calc_other_ops(sample_time,
+          ops_maps['READ']).iteritems()]
 
-    if not options.all_stats_on:
-      if options.read_stats_on:
-        others_list += ','.join(
-	    [','.join(map(str, v)) for k,v in self.calc_other_ops(sample_time,
-	     ops_maps['READ']).iteritems()])
+    return read_list + others_list
+
+  def build_write_stats(self, sample_time, full=False):
     # writes:  ops/s, Kb/s, avg rtt, and avg exe
-    # XXX: include avg xfer size and retransmits?
+    write_avg_rtt = 0.00
+    write_avg_exe = 0.00
+    others_list = []
     write_rpc_stats = self.__rpc_data['WRITE']
-    write_ops = float(read_rpc_stats[0])
+    write_ops = float(write_rpc_stats[0])
     write_kilobytes = float(self.__nfs_data['serverwritebytes']) / 1024
     write_rtt = float(write_rpc_stats[6])
     write_exe = float(write_rpc_stats[7])
@@ -219,22 +210,72 @@ class DeviceData:
     if write_ops != 0:
       write_avg_rtt = write_rtt / write_ops
       write_avg_exe = write_exe / write_ops
-    oline = '%s,%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f' % (
-        self.__nfs_data['export'], self.__nfs_data['mountpoint'],
-        ops_per_sec, ops_backlog, read_ops_per_sec, read_kb_per_sec,
-	read_avg_rtt, read_avg_exe, write_ops_per_sec, write_kb_per_sec,
-	write_avg_rtt, write_avg_exe)
-    if not options.all_stats_on:
-      others_list += ','.join(
-          [','.join(map(str, v)) for k,v in self.calc_other_ops(sample_time,
-           ops_maps['WRITE']).iteritems()])
-    elif options.all_stats_on:
-      others_list += ','.join(
-          [','.join(map(str, v)) for k,v in self.calc_other_ops(sample_time,
-           ops_maps['READ'] + ops_maps['WRITE']).iteritems()])
-    print oline + others_list
+    write_list = [('write_ops_per_sec', write_ops_per_sec),
+                  ('write_kb_per_sec', write_kb_per_sec),
+                  ('write_avg_rtt', write_avg_rtt),
+                  ('write_avg_exe', write_avg_exe)]
+    if full:
+      others_list = [(k, v) for k, v in self.calc_other_ops(sample_time,
+          ops_maps['WRITE']).iteritems()]
+
+    return write_list + others_list
+  
+  def display_iostats(self, sample_time, options):
+    """Display NFS and RPC stats in an iostat-like way
+    """
+    if not options.csv_on:
+      return self.display_iostats_human(sample_time)
+    sends = float(self.__rpc_data['rpcsends'])
+    if sample_time == 0:
+      sample_time = float(self.__nfs_data['age'])
+    ops_backlog = 0.00
+    if sends !=0:
+      ops_backlog = (float(
+          self.__rpc_data['backlogutil']) / sends) / sample_time
+    ops_per_sec = sends / sample_time
+    read_full = options.read_stats_on or options.all_stats_on
+    write_full = options.write_stats_on or options.all_stats_on
+    stats = [('export', self.__nfs_data['export']),
+             ('mountpoint', self.__nfs_data['mountpoint']),
+	     ('ops_per_sec', ops_per_sec), ('ops_backlog', ops_backlog)]
+    stats += self.build_read_stats(sample_time, read_full )
+    stats += self.build_write_stats(sample_time, write_full )
+    self.format_iostats_display(options, stats)
+
+  def format_iostats_display(self, options, stats):
+    # Creating a dict here for readability: stats[0][1] is not very helpful.
+    stats_dict = dict(stats)
+    oline_pre = ''
+    oline_others_pre = ''
+    oline_others = ''
+    if options.csv_on:
+      if options.csv_headers_on:
+        # List comprehension madness begin!!
+        oline_pre = ','.join([k for k,v in stats
+	    if k not in ops_maps['READ'] and k not in ops_maps['WRITE']])
+        oline_others_pre = ','.join(["%s_%s" % (k, key) for k,v in stats
+	    if k in ops_maps['READ'] or k in ops_maps['WRITE']
+	    for key, val in v])
+	print "%s,%s" % (oline_pre, oline_others_pre)
+        oline_others = ','.join(
+	    ['%.5f' % val for k,v in stats
+	     if k in ops_maps['READ'] or k in ops_maps['WRITE']
+	     for key,val in v])
+      oline = '%s,%s,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f' % (
+          stats_dict['export'], stats_dict['mountpoint'],
+          stats_dict['ops_per_sec'], stats_dict['ops_backlog'],
+	  stats_dict['read_ops_per_sec'], stats_dict['read_kb_per_sec'],
+          stats_dict['read_avg_rtt'], stats_dict['read_avg_exe'],
+	  stats_dict['write_ops_per_sec'], stats_dict['write_kb_per_sec'],
+          stats_dict['write_avg_rtt'], stats_dict['write_avg_exe'])
+    else:
+      oline_pre = ("Call Name :: Total Op / s :: retransmit rate :: bytes sent"
+                  "(kbits) :: bytes received (kbits) :: rtt (ms) :: avg exe (ms)")
+
+    print "%s,%s" % (oline, oline_others)
 
   # TODO(geoffrey): Refactor this into display_iostats().
+  # Call Name :: Total Op / s :: retransmit rate :: bytes sent (kbits) :: bytes received (kbits) :: rtt (ms) :: avg exe (ms)
   def display_iostats_human(self, sample_time):
     """Display NFS and RPC stats in an iostat-like way
     """
@@ -314,26 +355,36 @@ def parse_stats_file(filename):
 
   return ms_dict
 
-def print_iostat_help(name):
-  print 'usage: %s [ <interval> [ <count> ] ] [ <mount point> ] ' % name
-
 def print_iostat_summary(new, devices, time, options):
   for device in devices:
     stats = DeviceData()
     stats.parse_stats(new[device])
     stats.display_iostats(time, options)
 
-def iostat_command(options):
+def iostat_command(options, args):
   """iostat-like command for NFS mount points
   """
   mountstats = parse_stats_file(options.mountstats_file)
   devices = []
   sample_time = 0
-  for device, descr in mountstats.iteritems():
-    stats = DeviceData()
-    stats.parse_stats(descr)
-    if stats.is_nfs_mountpoint():
-      devices += [device]
+  # Checking if arg(s) was passed indicating particular mountpoint(s) to check.
+  for arg in args:
+    if arg in mountstats:
+      devices += [arg]
+  if len(devices) > 0:
+    check = []
+    for device in devices:
+      stats = DeviceData()
+      stats.parse_stats(mountstats[device])
+      if stats.is_nfs_mountpoint():
+        check += [device]
+      devices = check
+  else:
+    for device, descr in mountstats.iteritems():
+      stats = DeviceData()
+      stats.parse_stats(descr)
+      if stats.is_nfs_mountpoint():
+        devices += [device]
   if len(devices) == 0:
     print 'No NFS mount points were found'
     return
@@ -346,6 +397,8 @@ def handle_options():
       version="%prog .01")
   parser.add_option("-c", "--csv", action="store_true", dest="csv_on",
                     help="Specify csv output.", default=False)
+  parser.add_option("-k", "--csv_headers", action="store_true", dest="csv_headers_on",
+                    help="Specify csv output plus headers.", default=False)
   parser.add_option("-a", "--all_stats", action="store_true",
                     dest="all_stats_on",
                     help="Get all other stats from I/O ops.",
@@ -373,5 +426,5 @@ ops_maps = {'READ': ['GETATTR', 'LOOKUP', 'ACCESS', 'READLINK',
 	              'LINK', 'COMMIT']
            }
 options, args = handle_options()
-iostat_command(options)
+iostat_command(options, args)
 sys.exit(0)
