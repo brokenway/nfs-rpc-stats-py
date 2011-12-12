@@ -257,10 +257,10 @@ class DeviceData:
 	    if k in ops_maps['READ'] or k in ops_maps['WRITE']
 	    for key, val in v])
 	print "%s,%s" % (oline_pre, oline_others_pre)
-        oline_others = ','.join(
-	    ['%.5f' % val for k,v in stats
-	     if k in ops_maps['READ'] or k in ops_maps['WRITE']
-	     for key,val in v])
+      oline_others = ','.join(
+          ['%.5f' % val for k,v in stats
+	   if k in ops_maps['READ'] or k in ops_maps['WRITE']
+	   for key,val in v])
       oline = '%s,%s,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f' % (
           stats_dict['export'], stats_dict['mountpoint'],
           stats_dict['ops_per_sec'], stats_dict['ops_backlog'],
@@ -272,7 +272,10 @@ class DeviceData:
       oline_pre = ("Call Name :: Total Op / s :: retransmit rate :: bytes sent"
                   "(kbits) :: bytes received (kbits) :: rtt (ms) :: avg exe (ms)")
 
-    print "%s,%s" % (oline, oline_others)
+    if oline_others:
+      print "%s,%s" % (oline, oline_others)
+    else:
+      print oline
 
   # TODO(geoffrey): Refactor this into display_iostats().
   # Call Name :: Total Op / s :: retransmit rate :: bytes sent (kbits) :: bytes received (kbits) :: rtt (ms) :: avg exe (ms)
@@ -337,7 +340,7 @@ def parse_stats_file(filename):
   lines in the mountstats file corresponding to the mount
   point named in the key.
   """
-  ms_dict = dict()
+  ms_dict = {} 
   key = ''
 
   f = file(filename)
