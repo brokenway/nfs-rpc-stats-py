@@ -39,6 +39,7 @@ class DeviceData:
     self.__nfs_data = dict()
     self.__rpc_data = dict()
     self.__rpc_data['ops'] = []
+    self.csv_header_data = ''
 
   def __parse_nfs_line(self, words):
     if words[0] == 'device':
@@ -240,7 +241,7 @@ class DeviceData:
 	     ('ops_per_sec', ops_per_sec), ('ops_backlog', ops_backlog)]
     stats += self.build_read_stats(sample_time, read_full )
     stats += self.build_write_stats(sample_time, write_full )
-    self.format_iostats_display(options, stats)
+    return self.format_iostats_display(options, stats)
 
   def format_iostats_display(self, options, stats):
     # Creating a dict here for readability: stats[0][1] is not very helpful.
@@ -256,7 +257,8 @@ class DeviceData:
         oline_others_pre = ','.join(["%s_%s" % (k, key) for k,v in stats
 	    if k in ops_maps['READ'] or k in ops_maps['WRITE']
 	    for key, val in v])
-	print "%s,%s" % (oline_pre, oline_others_pre)
+	if not self.csv_header_data:
+          self.csv_header_data = "%s,%s" % (oline_pre, oline_others_pre)
       oline_others = ','.join(
           ['%.5f' % val for k,v in stats
 	   if k in ops_maps['READ'] or k in ops_maps['WRITE']
@@ -273,9 +275,9 @@ class DeviceData:
                   "(kbits) :: bytes received (kbits) :: rtt (ms) :: avg exe (ms)")
 
     if oline_others:
-      print "%s,%s" % (oline, oline_others)
+      return "%s,%s" % (oline, oline_others)
     else:
-      print oline
+      return oline
 
   # TODO(geoffrey): Refactor this into display_iostats().
   # Call Name :: Total Op / s :: retransmit rate :: bytes sent (kbits) :: bytes received (kbits) :: rtt (ms) :: avg exe (ms)
@@ -359,10 +361,17 @@ def parse_stats_file(filename):
   return ms_dict
 
 def print_iostat_summary(new, devices, time, options):
+  collection = []
   for device in devices:
     stats = DeviceData()
     stats.parse_stats(new[device])
-    stats.display_iostats(time, options)
+    collection.append(stats.display_iostats(time, options))
+
+  if options.csv_on:
+    if options.csv_headers_on:
+      print stats.csv_header_data
+    for device in collection:
+      print device
 
 def iostat_command(options, args):
   """iostat-like command for NFS mount points
